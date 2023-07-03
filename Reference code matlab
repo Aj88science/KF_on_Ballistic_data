@@ -1,0 +1,185 @@
+close all;
+clear all;
+
+fd = fopen('ballistic_data.dat','r');
+data=fscanf(fd,'%f %f %f %f %f %f %f %f %f %f %f %f %f \n',[13,inf]);
+fclose(fd);
+t = data(1, :);
+x_true = data(2, :);
+y_true = data(3, :);
+z_true = data(4, :);
+vx_true = data(5, :);
+vy_true = data(6, :);
+vz_true = data(7, :);
+ax_true = data(8, :);
+ay_true = data(9, :);
+az_true = data(10, :);
+mx = data(11, :);
+my = data(12, :);
+mz = data(13, :);
+
+
+xkHatMinus=zeros(9,1);
+xki=zeros(9,1);
+xk=zeros(9,1);
+phi=zeros(9,9);
+pkMinus=zeros(9,9);
+qmat=eye(9,9);
+hmat=zeros(3,9);
+rmat=eye(3,3);
+meas=zeros(3,1);
+velmeas=zeros(3,1);
+ze=zeros(3,1);
+imat=eye(9,9);
+
+dt = 0.1;
+pk=eye(9,9);
+pk(1,1)=10^4;
+pk(2,2)=10^4;
+pk(3,3)=10^4;
+pk(4,4)=10^4;
+pk(5,5)=10^4;
+pk(6,6)=10^4;
+pk(7,7)=10^4;
+pk(8,8)=10^4;
+pk(9,9)=10^4;
+
+pk1 = pk;
+
+hmat(1,1)=1;
+hmat(2,4)=1;
+hmat(3,7)=1;
+
+qmat(1,1)=dt^5/10;
+qmat(2,1)=dt^4/8;
+qmat(3,1)=dt^3/6;
+
+qmat(1,2)=dt^4/8;
+qmat(2,2)=dt^3/3;
+qmat(3,3)=dt^2/2;
+
+qmat(1,3)=dt^3/6;
+qmat(2,3)=dt^2/2;
+qmat(3,3)=dt;
+
+
+qmat(4,4)=dt^5/20;
+qmat(5,4)=dt^4/8;
+qmat(6,4)=dt^3/6;
+
+qmat(4,5)=dt^4/8;
+qmat(5,5)=dt^3/3;
+qmat(6,5)=dt^2/2;
+
+qmat(4,6)=dt^3/6;
+qmat(5,6)=dt^2/2;
+qmat(6,6)=dt;
+
+
+qmat(7,7)=dt^5/20;
+qmat(8,7)=dt^4/8;
+qmat(9,7)=dt^3/6;
+
+qmat(7,8)=dt^4/8;
+qmat(8,8)=dt^3/3;
+qmat(9,8)=dt^2/2;
+
+qmat(7,8)=dt^3/6;
+qmat(8,8)=dt^2/2;
+qmat(9,8)=dt;
+
+qmat=qmat*2.5;
+
+rmat(1,1)=13^2;
+rmat(2,2)=25^2;
+rmat(3,3)=30^2;
+
+Phi = [1 dt 0.5*dt^2 0 0 0 0 0 0;
+       0 1 dt 0 0 0 0 0 0;
+       0 0 1 0 0 0 0 0 0;
+       0 0 0 1 dt 0.5*dt^2 0 0 0;
+       0 0 0 0 1 dt 0 0 0;
+       0 0 0 0 0 1 0 0 0;
+       0 0 0 0 0 0 1 dt 0.5*dt^2;
+       0 0 0 0 0 0 0 1 dt;
+       0 0 0 0 0 0 0 0 1];
+   
+   for i=1:length(t)
+       meas(1,1)=mx(i);
+       meas(2,1)=my(i);
+       meas(3,1)=mz(i);
+       if (i==1)
+           xk(1,1)=mx(i);
+           xk(2,1)=vx_true(i);
+           xk(3,1)=ax_true(i);
+           xk(4,1)=mx(i);
+           xk(5,1)=vy_true(i);
+           xk(6,1)=ay_true(i);
+           xk(7,1)=mx(i);
+           xk(8,1)=vz_true(i);
+           xk(9,1)=az_true(i);
+       else
+           xkhat=phi*xk;
+           pkMinus=phi*pk*phi' + qmat;
+           ze = hmat*xkhat;
+           ri = hmat*pkMinus*hmat' + rmat;
+           kgain = pkMinus*hmat'*inv(ri);
+           xk = xkhat + kgain*(meas-ze);
+           pk = (imat-kgain*hmat)*pkMinus*(imat-kgain*hmat)' + kgain*rmat*kgain';
+       end
+       
+       x_est(i)=xk(1,1);
+       vx_est(i)=xk(2,1);
+       ax_est(i)=xk(3,1);
+       y_est(i)=xk(4,1);
+       vy_est(i)=xk(5,1);
+       ay_est(i)=xk(6,1);
+       z_est(i)=xk(7,1);
+       vz_est(i)=xk(8,1);
+       az_est(i)=xk(9,1);
+       
+       pk_x_p(i)=sqrt(pk(1,1))*1;
+       pk_x_n(i)=sqrt(pk(1,1))*(-1);
+       pk_y_p(i)=sqrt(pk(4,4))*1;
+       pk_y_n(i)=sqrt(pk(4,4))*(-1);
+       pk_z_p(i)=sqrt(pk(7,7))*1;
+       pk_z_n(i)=sqrt(pk(7,7))*(-1);
+       
+       xet(i)=x_est(i) - x_true(i);
+       yet(i)=y_est(i) - y_true(i);
+       zet(i)=z_est(i) - z_true(i);
+       
+       xmt(i)=mx(i)-x_true(i);
+       ymt(i)=my(i)-y_true(i);
+       zmt(i)=mz(i)-z_true(i);
+       
+       v_est(i)=sqrt(vx_est(i)^2+vy_est(i)^2+vz_est(i)^2);
+       v_true(i)=sqrt(vx_true(i)^2+vy_true(i)^2+vz_true(i)^2);
+       v_error = v_true(i)-v_est(i);
+       a_est(i)=sqrt(ax_est(i)^2+ay_est(i)^2+az_est(i)^2);
+       a_true(i)=sqrt(ax_true(i)^2+ay_true(i)^2+az_true(i)^2);
+       a_error = a_true(i)-a_est(i);
+       fprintf('%d\n',i);
+       
+   end
+   
+   figure;
+    hold on;
+    grid on;
+    plot(t, x_true, 'r', 'LineWidth', 2);
+    plot(t, x_est, 'g', 'LineWidth', 2);
+    plot(t, mx, 'b', 'LineWidth', 2);
+    xlabel('t(sec)');
+    ylabel('x(m)');
+    
+    figure;
+    hold on;
+    grid on;
+    plot(t, xmt, 'r', 'LineWidth', 2);
+    plot(t, xet, 'y', 'LineWidth', 2);
+    plot(t, pk_x_p, 'g', 'LineWidth', 2);
+    plot(t, pk_x_n, 'g', 'LineWidth', 2);
+    legend('true_meas','true-est','\sigma','-\sigma')
+    xlabel('t(sec)');
+    ylabel('Error-x(m)');
+    
